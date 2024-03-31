@@ -1,0 +1,22 @@
+#root {
+  width: 100vw;
+  height: 100vh;
+}
+
+body {
+  margin: 0;
+}
+
+.canvasContainer {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  height: 100vh;
+  gap: 8px; /* Adjust the gap between canvases as needed */
+}
+
+/* Ensure Canvas elements do not overflow their grid area */
+.canvasContainer > canvas {
+  width: 100%;
+  height: 100%;
+}
