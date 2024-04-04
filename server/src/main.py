@@ -1,8 +1,15 @@
 from .audio import audio
-from fastapi import FastAPI, HTTPException
+from .config.config import config
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from sqlmodel import Session, SQLModel, create_engine
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from .db import crud
 from .agents.agent import AssistantAgent, EngineeringManagerAgent
+from .agents.agent_manager import AgentManager
+from .llm.openai_client import respond_to_prompt
 
 
 
@@ -12,28 +19,25 @@ sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///./{sqlite_file_name}"
 
 engine = create_engine(
-    sqlite_url, echo=True, connect_args={"check_same_thread": False}
+    sqlite_url, echo=False, connect_args={"check_same_thread": False}
 )
 
 agents = []
+ceo_name = config["ceo_name"]
+ceo_email = config["ceo_email"]
 
 @app.on_event("startup")
 def on_startup():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as db:
-        # Check for the default meeting room
         default_meeting_room = crud.get_meeting_room_by_id(db, id=1)
         if not default_meeting_room:
-            # Create the default meeting room if it doesn't exist
             crud.create_meeting_room(db, id=1)
 
         assistant_agent = AssistantAgent(db_session=db)
         engineering_manager_agent = EngineeringManagerAgent(db_session=db)
         agents.append(assistant_agent)
         agents.append(engineering_manager_agent)
-
-        assistant_agent.post_message("Hello, I'm here to assist the CEO.")
-        engineering_manager_agent.post_message("Hello, I'm the Engineering Manager.")
 
 
 @app.get("/meeting_rooms")
@@ -51,7 +55,7 @@ def create_meeting_room(id: int):
         return db_room
 
 @app.get("/messages")
-def messages(meeting_room_id: int):
+def messages(meeting_room_id: int=1):
     with Session(engine) as db:
         db_messages = crud.messages(db, meeting_room_id)
         if db_messages is None:
@@ -59,11 +63,28 @@ def messages(meeting_room_id: int):
         return db_messages
 
 @app.post("/messages")
-def create_message(user_name: str, text: str, role: str, meeting_room_id: int=1):
+def create_message(user_name: str, text: str, role: str, background_tasks: BackgroundTasks, to_role: str=None, meeting_room_id: int=1):
     with Session(engine) as db:
-        db_message = crud.create_message(db, user_name=user_name, text=text, role=role, meeting_room_id=meeting_room_id)
+        db_message = crud.create_message(db, user_name=user_name, text=text, role=role, to_role=to_role, meeting_room_id=meeting_room_id)
+        background_tasks.add_task(crud.process_message, db, db_message.id, agents)
         return db_message
 
+@app.get("/new_user_message")
+def new_user_message(text: str, background_tasks: BackgroundTasks):
+    return create_message(text=text, user_name=ceo_name, role="CEO", background_tasks=background_tasks, meeting_room_id=1)
+
+@app.get("/messages_between_roles")
+def messages_between_roles(role1: str, role2: str):
+    with Session(engine) as db:
+        db_messages = crud.messages_between_roles(db, role1, role2)
+        if db_messages is None:
+            raise HTTPException(status_code=404, detail=f"Messages not found between roles {role1} and {role2}")
+        return db_messages
+
+
+@app.post("/test_prompt")
+def test_prompt(prompt:str=None):
+    return respond_to_prompt(prompt=prompt)
 
 # @app.get("/")
 # def read_root():
