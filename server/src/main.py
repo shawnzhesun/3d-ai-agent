@@ -1,40 +1,52 @@
-from .audio import audio
-from .config.config import config
+import asyncio
+import configparser
+import os
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from sqlmodel import Session, SQLModel, create_engine
-from dotenv import load_dotenv
 
-load_dotenv()
+# Config Initialization
+config = configparser.ConfigParser()
+config.read(["../config.cfg"])
+os.environ["OPENAI_API_KEY"] = config["openai"]["apiKey"]
+os.environ["AZURE_OPENAI_KEY"] = config["azure-openai"]["apiKey"]
 
+from .audio import audio
+from .tools.microsoft.graph import Graph
 from .db import crud
 from .agents.agent import AssistantAgent, EngineeringManagerAgent
-from .agents.agent_manager import AgentManager
 from .llm.openai_client import respond_to_prompt
 
 
-
+# FastAPI Initialization
 app = FastAPI()
 
+# Database Initialization
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///./{sqlite_file_name}"
-
 engine = create_engine(
     sqlite_url, echo=False, connect_args={"check_same_thread": False}
 )
 
+# Microsoft Graph Initialization
+graph: Graph = Graph(config["azure"])
+
+# Agent Initialization
 agents = []
-ceo_name = config["ceo_name"]
-ceo_email = config["ceo_email"]
+
+ceo_name = config["app"]["ceoName"]
+ceo_email = config["app"]["ceoEmail"]
+
 
 @app.on_event("startup")
-def on_startup():
+async def on_startup():
+    await graph.greet_user()
     SQLModel.metadata.create_all(engine)
     with Session(engine) as db:
         default_meeting_room = crud.get_meeting_room_by_id(db, id=1)
         if not default_meeting_room:
             crud.create_meeting_room(db, id=1)
 
-        assistant_agent = AssistantAgent(db_session=db)
+        assistant_agent = AssistantAgent(db_session=db, msGraph=graph)
         engineering_manager_agent = EngineeringManagerAgent(db_session=db)
         agents.append(assistant_agent)
         agents.append(engineering_manager_agent)

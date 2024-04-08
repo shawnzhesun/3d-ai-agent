@@ -1,0 +1,17 @@
+[app]
+ceoName =
+ceoEmail =
+
+[openai]
+apiKey =
+
+[azure-openai]
+apiKey =
+
+[jira]
+apiKey =
+
+[azure]
+clientId =
+tenantId =
+graphUserScopes =

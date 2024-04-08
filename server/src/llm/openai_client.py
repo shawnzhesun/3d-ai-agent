@@ -31,4 +31,5 @@ def respond_to_messages(messages, tools: list[Type[BaseTool]]=None):
     )
     llm_response = llm_completion.choices[0].message
     print(f"LLM Messages: {messages}\nLLM Completion: {llm_response}")
+    messages.append(llm_response)
     return llm_response
