@@ -2,12 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Optional, Type
 from sqlalchemy.orm import Session
 from textwrap import dedent
+from O365 import Account
 from ..db import crud
 from ..db.models import Message
 from ..llm.openai_client import respond_to_messages
 from ..tools.tool import BaseTool
-from ..tools.microsoft.graph import Graph
-from ..tools.microsoft.ms_graph_tool import MicrosoftGraphTool
+from ..tools.microsoft.ms_graph_tool import MicrosoftGraphCalendarTool, MicrosoftGraphEmailTool
 
 class Agent(ABC):
     """
@@ -103,10 +103,11 @@ class AssistantAgent(Agent):
     _role = "CEO Assistant"
     _responsibility = "provide administrative support to the CEO and coordinate the CEO's schedule"
 
-    def __init__(self, db_session: Optional[Session]=None, msGraph: Graph=None):
+    def __init__(self, db_session: Optional[Session]=None):
         super().__init__(db_session=db_session)
         self.tools = [
-            MicrosoftGraphTool(graph=msGraph),
+            MicrosoftGraphCalendarTool(),
+            MicrosoftGraphEmailTool(),
         ]
 
     def system_message(self):

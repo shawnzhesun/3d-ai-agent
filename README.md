@@ -6,19 +6,19 @@
 
 ### 🖥️ Set Up Environment
 
-1. **Set up Python Environment:** Ensure you have a version 3.9 or higher Python environment.
+1. **Set up Python Environment:** Ensure you have a version 3.10 or higher Python environment.
    Use the following command to create a new Python virtual environment with your preferred environment name:
 
    ```
-   conda create -n <you environment name> python=3.9 -y
-   conda activate <you environment name>
+   pyenv virtualenv 3.10 3d-ai-agent
+   pyenv activate 3d-ai-agent
    ```
 
 2. **Install Dependencies:** Once the environment is created, install the required dependencies.
 
    ```
    cd server
-   pip3 install -r requirements.txt
+   pip install -r requirements.txt
    ```
 
 ### 🔧 Set Up Configurations

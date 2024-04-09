@@ -15,7 +15,7 @@ class BaseTool(ABC):
         pass
 
     @abstractmethod
-    def run(self, **kwargs):
+    async def run(self, **kwargs):
         pass
 
     def parse_function_args(self, tool_call):

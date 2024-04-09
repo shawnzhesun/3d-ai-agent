@@ -3,15 +3,18 @@ import configparser
 import os
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from sqlmodel import Session, SQLModel, create_engine
+from O365 import Account
+import readline
 
 # Config Initialization
 config = configparser.ConfigParser()
 config.read(["../config.cfg"])
 os.environ["OPENAI_API_KEY"] = config["openai"]["apiKey"]
 os.environ["AZURE_OPENAI_KEY"] = config["azure-openai"]["apiKey"]
+os.environ["MS_CLIENT_ID"] = config["azure"]["clientId"]
+os.environ["MS_CLIENT_SECRET"] = config["azure"]["clientSecret"]
 
-from .audio import audio
-from .tools.microsoft.graph import Graph
+# from .audio import audio
 from .db import crud
 from .agents.agent import AssistantAgent, EngineeringManagerAgent
 from .llm.openai_client import respond_to_prompt
@@ -27,9 +30,6 @@ engine = create_engine(
     sqlite_url, echo=False, connect_args={"check_same_thread": False}
 )
 
-# Microsoft Graph Initialization
-graph: Graph = Graph(config["azure"])
-
 # Agent Initialization
 agents = []
 
@@ -38,15 +38,14 @@ ceo_email = config["app"]["ceoEmail"]
 
 
 @app.on_event("startup")
-async def on_startup():
-    await graph.greet_user()
+def on_startup():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as db:
         default_meeting_room = crud.get_meeting_room_by_id(db, id=1)
         if not default_meeting_room:
             crud.create_meeting_room(db, id=1)
 
-        assistant_agent = AssistantAgent(db_session=db, msGraph=graph)
+        assistant_agent = AssistantAgent(db_session=db)
         engineering_manager_agent = EngineeringManagerAgent(db_session=db)
         agents.append(assistant_agent)
         agents.append(engineering_manager_agent)
